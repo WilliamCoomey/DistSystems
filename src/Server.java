@@ -2,6 +2,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.io.IOException;
 import java.net.Socket;
@@ -10,7 +11,7 @@ import java.util.Observer;
 import java.util.Scanner;
 import java.net.ServerSocket;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"unused","deprecation"})
 public class Server implements Observer
 {
 	static ServerSocket echoServer = null;
@@ -31,19 +32,30 @@ public class Server implements Observer
 		Server server = new Server();
 		
 		setUpServer();
-		Scanner kb = new Scanner(System.in);
-		kb.nextLine();
+		Scanner k = new Scanner(System.in);
+		System.out.println("Press enter to connect a client");
+		k.nextLine();
 		setUpClient();
+		System.out.println("Connected");
 		
 		files = fileManager.getFiles();
 		
-		line = getString();
+		while(true)
+		{
+			line = getString();
+			if(line.indexOf("/LIST_FILES") != -1)
+				sendServerFiles();
+			else if(line.indexOf("/GET_FILE") != -1)
+				sendFile();
+			else if(line.indexOf("/SENDING_FILE") != -1)
+				recieveFile();
+			else if(line.indexOf("/CLOSE_CONNECTION") != -1)
+				break;
+		}
 		
-		if(line.indexOf("/LIST_FILES") != -1)
-			sendServerFiles();
 		
 		
-		
+		k.close();
 //		setUpFiles();
 //		Thread thread = new Thread(fileManager);
 //		thread.start();
@@ -103,7 +115,7 @@ public class Server implements Observer
 		String[] fileList = new String[files.length];
 		
 		for(int i=0;i<files.length;i++)
-			fileList[i] = files[i].toString();
+			fileList[i] = files[i].toString().substring(13);
 		
 		for(int i=0;i<fileList.length;i++)
 			sendString(fileList[i]);
@@ -111,31 +123,87 @@ public class Server implements Observer
 		sendString("-1");
 	}
 	
-	public static void sendFile(File file)
+	public static void recieveFile()
+	{
+		System.out.println("In recieve file");
+		File file;
+		FileOutputStream fileOut;
+		boolean fileExsits = false;
+		String fileName = getString();
+	    
+	    int bytesLength = 0;
+	    byte[] buffer = new byte[1024];
+	    
+	    try 
+	    {
+	    	System.out.println("About to recieve");
+//		    String fileName = getString();
+	    	file = new File(fileName);
+	    	fileOut = new FileOutputStream("serverFolder/"+file);
+	    	System.out.println("Got the server folder");
+	    	
+	    	while(true)
+	    	{
+	    		System.out.println("Reading in first int");
+		    	bytesLength = input.readInt();
+		    	
+		    	System.out.println(bytesLength);
+		    	
+		    	if(bytesLength == -1)
+		    		break;
+		    	
+		    	input.read(buffer, 0, bytesLength);
+		    	fileOut.write(buffer, 0, bytesLength);
+	    	}
+	    	fileOut.close();
+	    	System.out.println("Finished read");
+	    }
+	    catch(Exception e)
+	    {System.out.println("ERROR: Error recieving file");}
+	}
+	
+	public static void sendFile()
 	{
 		try
 		{
-//			File file = new File("folder//text.txt");
-			FileInputStream fileIn = new FileInputStream(file);
+			String fileName = getString();
+			System.out.println("File name: "+fileName);
+			File file = new File("serverFolder/"+fileName);
 			
-			int bytesLength = 0;
-			byte[] buffer = new byte[1024];
-			
-			
-			while(true)
+			if(file.exists())
 			{
-				bytesLength = fileIn.read(buffer);
+				System.out.println("File Exists");
+				System.out.println(file.toString());
+				sendString(file.toString().substring(13));
+				FileInputStream fileIn = new FileInputStream(file);
 				
-				output.writeInt(bytesLength);
-				System.out.println("wrote" + bytesLength);
+				int bytesLength = 0;
+				byte[] buffer = new byte[1024];
 				
-				if(bytesLength == -1)
-					break;
-				
-				output.write(buffer, 0, bytesLength);
+				while(true)
+				{
+					bytesLength = fileIn.read(buffer);
+					
+					output.writeInt(bytesLength);
+					System.out.println("wrote" + bytesLength);
+					
+					if(bytesLength == -1)
+						break;
+					
+					output.write(buffer, 0, bytesLength);
+				}
+				fileIn.close();
+			}
+			else
+			{
+				System.out.println("File not found");
+				sendString("-1");
 			}
 		}
-		catch (Exception e) {e.printStackTrace();}
+		catch (Exception e) 
+		{
+			e.printStackTrace();
+		}
 		
 		System.out.println("Finished write");
 	}

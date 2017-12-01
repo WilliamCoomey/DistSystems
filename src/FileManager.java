@@ -9,7 +9,7 @@ public class FileManager extends Observable implements Runnable
 	
 	public FileManager(Observer o)
 	{
-		directory = new File("folder");
+		directory = new File("serverFolder");
 		files = directory.listFiles();
 		addObserver(o);
 	}
